@@ -2,689 +2,359 @@
 
 > A comprehensive guide to understanding how packets flow through the Linux network stack - from NIC hardware to application layer and back. Perfect for building educational games and visualizations!
 
-## Table of Contents
+## About This Documentation
 
-1. [Overview](#overview)
-2. [The Receiving Path (RX)](#the-receiving-path-rx)
-3. [The Transmitting Path (TX)](#the-transmitting-path-tx)
-4. [Key Kernel Subsystems](#key-kernel-subsystems)
-5. [Packet Transformation & Duplication](#packet-transformation--duplication)
-6. [Game Design Ideas](#game-design-ideas)
+This documentation provides an **accurate, detailed** exploration of how the Linux kernel processes network packets. It includes:
+- ✓ Real function names and file locations
+- ✓ Actual code flows (not just concepts)
+- ✓ Different scenarios and edge cases
+- ✓ Performance optimizations explained
+- ✓ Educational game design concepts
 
----
-
-## Overview
-
-### The Big Picture
-
-```
-┌─────────────────── RECEIVE PATH (RX) ────────────────────┐
-│                                                           │
-│  NIC Hardware → DMA → Ring Buffer → Driver → Softirq →   │
-│  → Network Stack → L2 (Ethernet) → L3 (IP) → L4 (TCP) →  │
-│  → Socket Buffer → Application (L7)                       │
-│                                                           │
-└───────────────────────────────────────────────────────────┘
-
-┌─────────────────── TRANSMIT PATH (TX) ────────────────────┐
-│                                                           │
-│  Application → Socket → L4 → L3 → L2 → QoS/Traffic       │
-│  → Driver → DMA → Ring Buffer → NIC Hardware             │
-│                                                           │
-└───────────────────────────────────────────────────────────┘
-```
+**Important**: Early versions incorrectly described separate "L2" and "L3" stages. The kernel actually uses **protocol demultiplexing** - `__netif_receive_skb_core()` looks up the protocol handler directly based on EtherType. This documentation has been corrected based on kernel source research.
 
 ---
 
-## The Receiving Path (RX)
+## Documentation Structure
 
-### Stage 1: NIC Hardware - The Portal
+This guide is organized into focused documents:
 
-When a packet arrives at your machine:
+### 1. [RX Path - Receive Journey](docs/01-RX-Path.md)
+Complete packet receive path with real kernel functions:
+- NIC hardware → DMA → Ring Buffer
+- Interrupts & NAPI
+- Protocol demultiplexing (the actual flow!)
+- Netfilter PRE_ROUTING
+- Routing decision (local vs forward)
+- L4 processing (TCP/UDP)
+- Socket delivery → Application
 
-1. **Physical Signal**: Electrical/optical signals arrive on the wire
-2. **Frame Detection**: NIC detects frame boundaries
-3. **Validation**: NIC checks:
-   - Frame Check Sequence (FCS/CRC)
-   - Destination MAC address
-4. **Filtering**: Hardware filters (if configured):
-   - VLAN filtering
-   - Packet steering (RSS - Receive Side Scaling)
-   - Hardware offload features
+**Learn**: `netif_receive_skb()`, `__netif_receive_skb_core()`, `ip_rcv()`, `tcp_v4_rcv()`
 
-**RSS (Receive Side Scaling)**: Distributes packets across multiple RX queues based on hash of packet headers
+### 2. [Network Optimizations](docs/02-Network-Optimizations.md)
+Performance features that make Linux networking fast:
+- **NAPI** - Interrupt mitigation
+- **GRO** - Generic Receive Offload
+- **RSS** - Receive Side Scaling (hardware)
+- **RPS/RFS** - Receive Packet Steering (software)
+- **GSO/TSO** - Segmentation offload
+- **XPS** - Transmit Packet Steering
+- Checksum offloading
+- Zero-copy techniques
 
-### Stage 2: DMA Transfer - The Memory Portal
+**Learn**: How these optimizations work, when to use them, how to tune them
 
-**Key Structure**: Ring Buffer (circular queue in RAM)
+### 3. [TX Path - Transmit Journey](docs/03-TX-Path.md)
+Complete packet transmit path with real kernel functions:
+- Application → System call
+- Socket layer → TCP/UDP
+- IP layer → Header construction
+- Netfilter OUTPUT & POSTROUTING
+- Routing → Next hop selection
+- ARP resolution → MAC address
+- Traffic Control (QoS)
+- Device driver → DMA → NIC
 
-```
-Ring Buffer:
-┌──────┬──────┬──────┬──────┬──────┬──────┐
-│ Desc │ Desc │ Desc │ Desc │ Desc │ Desc │  <- Descriptors
-└──┬───┴──┬───┴──┬───┴──┬───┴──┬───┴──┬───┘
-   │      │      │      │      │      │
-   ▼      ▼      ▼      ▼      ▼      ▼
-┌──────┬──────┬──────┬──────┬──────┬──────┐
-│ SKB  │ SKB  │ SKB  │ SKB  │ SKB  │ SKB  │  <- Packet Buffers
-└──────┴──────┴──────┴──────┴──────┴──────┘
-```
+**Learn**: `tcp_sendmsg()`, `ip_queue_xmit()`, `dev_queue_xmit()`, qdisc system
 
-**Process**:
-1. Driver pre-allocates ring buffers in memory
-2. NIC uses **DMA (Direct Memory Access)** to write packet directly to RAM
-3. No CPU involvement - efficient!
-4. NIC writes packet to next available ring buffer slot
+### 4. [Netfilter & Routing - Different Paths](docs/04-Netfilter-and-Routing.md)
+Not all packets follow the same path! Understand:
+- **Netfilter hook points**: PREROUTING, INPUT, FORWARD, OUTPUT, POSTROUTING
+- **Routing decisions**: Local delivery vs forwarding
+- **NAT**: DNAT and SNAT (when and where)
+- **Connection tracking**: Stateful firewalls
+- **Different scenarios**:
+  - Local delivery (normal)
+  - Forwarding (router mode)
+  - DNAT port forwarding
+  - Packet dropped by firewall
+  - Packet duplication (TEE)
+  - Locally generated traffic
+  - Loopback traffic
 
-**Key Data Structure**: `sk_buff` (socket buffer) - the packet's journey container
+**Learn**: iptables, routing tables, policy routing, connection tracking
 
-### Stage 3: Interrupt & NAPI - The Alarm
+### 5. [Game Design - "Kernel Mage"](docs/05-Game-Design.md)
+Educational game concept based on packet journey:
+- 9 realms (NIC → Application)
+- Magic spells based on real features (GRO, NAT, TSO)
+- Boss fights (Netfilter checkpoints)
+- Learning mechanics
+- Multiplayer modes
+- Implementation ideas
 
-**NAPI (New API)** - Modern & Efficient:
-```
-NIC → IRQ → Driver disables IRQ → Polling Mode
-```
-
-**Benefits**:
-- Under high load, switches to polling instead of interrupts
-- Prevents "interrupt storm"
-- Processes multiple packets per poll
-
-### Stage 4: Driver Layer - The First Gate
-
-**Process**:
-1. Driver retrieves packet from ring buffer
-2. Allocates and fills `sk_buff` structure
-3. Sets up packet metadata (timestamp, device, protocol)
-4. Calls `netif_receive_skb()` or `napi_gro_receive()`
-
-**GRO (Generic Receive Offload)**:
-- Combines multiple packets into larger ones
-- Reduces per-packet overhead
-- "Magical packet fusion!"
-
-### Stage 5: Network Stack Entry
-
-**Function**: `netif_receive_skb()` → `__netif_receive_skb_core()`
-
-**Key Operations**:
-1. **Packet Taps**: tcpdump/wireshark hook here via `AF_PACKET` sockets
-2. **RPS (Receive Packet Steering)**: Software load balancing across CPUs
-3. **Bridge Check**: Is this interface part of a bridge?
-4. **Protocol Demultiplexing**: Reads `EtherType` field:
-   - `0x0800` → IPv4
-   - `0x86DD` → IPv6
-   - `0x0806` → ARP
-
-### Stage 6: L2 Processing - The Ethernet Realm
-
-**Key Checks**:
-1. Destination MAC validation
-2. VLAN Processing
-3. Bridge Processing (if applicable):
-
-```
-Bridge Decision:
-┌────────────┐
-│  Packet    │
-└─────┬──────┘
-      │
-      ▼
-┌─────────────┐      Yes    ┌──────────┐
-│  Local MAC? │─────────────→│ Go to L3 │
-└─────┬───────┘              └──────────┘
-      │ No
-      ▼
-┌─────────────┐      Yes    ┌──────────┐
-│ Known MAC?  │─────────────→│ Forward  │
-└─────┬───────┘              └──────────┘
-      │ No
-      ▼
-┌──────────────┐
-│ Flood all    │
-│ ports        │
-└──────────────┘
-```
-
-### Stage 7: L3 Processing - The IP Realm
-
-**Entry Point**: `ip_rcv()` in `net/ipv4/ip_input.c`
-
-#### Initial Checks
-- IP header checksum validation
-- Header length checks
-- TTL check (Time To Live)
-- Version check (IPv4 vs IPv6)
-
-#### Netfilter Hook - PREROUTING
-
-**First magical checkpoint!**
-
-```
-┌────────────────────────────────────┐
-│  NETFILTER PREROUTING              │
-│  (iptables -t raw/mangle/nat)      │
-└────────────┬───────────────────────┘
-             │
-      ┌──────┴──────┐
-      │  Decision   │
-      └──────┬──────┘
-             │
-     ┌───────┼───────┐
-     ▼       ▼       ▼
-   ACCEPT  DROP  QUEUE
-```
-
-**Possible Actions**:
-- **ACCEPT**: Continue
-- **DROP**: Discard packet
-- **DNAT**: Change destination
-- **MARK**: Mark packet for later processing
-- **CONNTRACK**: Track connection state
-
-#### Routing Decision
-
-**The Big Question**: What to do with this packet?
-
-```
-┌───────────────────────────┐
-│  Routing Decision         │
-└───────────┬───────────────┘
-            │
-    ┌───────┴────────┐
-    │  Destination?  │
-    └───────┬────────┘
-            │
-    ┌───────┴────────────┐
-    │                    │
-    ▼                    ▼
-┌────────┐          ┌────────────┐
-│ LOCAL  │          │  FORWARD   │
-│ (for   │          │  (routing) │
-│  us!)  │          │            │
-└───┬────┘          └─────┬──────┘
-    │                     │
-    ▼                     ▼
-ip_local_deliver    ip_forward
-```
-
-#### Path A - Local Delivery
-
-```
-ip_local_deliver()
-├── Netfilter: INPUT chain
-├── IP options processing
-├── Defragmentation (if needed)
-└── Protocol demux (TCP/UDP/ICMP/etc.)
-```
-
-#### Path B - Forwarding (Router Mode)
-
-```
-ip_forward()
-├── Check: Is forwarding enabled?
-├── Check: TTL > 1? (decrement it)
-├── Netfilter: FORWARD chain
-├── Fragmentation (if needed)
-└── Send to output path
-```
-
-### Stage 8: L4 Processing - The Transport Realm
-
-#### For TCP:
-
-```
-tcp_v4_rcv()
-├── TCP header validation
-├── Checksum verification
-├── Socket lookup (src_ip, src_port, dst_ip, dst_port)
-├── State machine processing
-│   ├── SYN → new connection
-│   ├── ACK → existing connection
-│   └── FIN → close connection
-├── Sequence number validation
-├── Window management
-├── Data queuing
-└── ACK generation
-```
-
-#### For UDP:
-
-```
-udp_rcv()
-├── UDP header validation
-├── Checksum verification
-├── Socket lookup (dst_ip, dst_port)
-├── Queue to socket buffer
-└── Wake up application
-```
-
-### Stage 9: Socket Layer - The Application Gate
-
-**Process**:
-1. Packet added to socket's receive queue
-2. If application is waiting (`recv()`, `read()`), wake it up
-3. If buffer full, drop packet
-
-### Stage 10: Application Layer (L7) - The Final Destination
-
-**System Call**: `recv()`, `recvfrom()`, `read()`, `recvmsg()`
-
-1. Application makes system call
-2. Kernel copies data from socket buffer to userspace buffer
-3. `sk_buff` is freed
-4. Application processes data
-
-**The packet has reached its destination!** 🎯
+**Learn**: How to make networking concepts fun and engaging!
 
 ---
 
-## The Transmitting Path (TX)
+## The Big Picture
 
-### Stage 1: Application Sends
-
-**System Call**: `send()`, `sendto()`, `write()`, `sendmsg()`
-
-1. Application provides data buffer and destination
-2. Kernel allocates `sk_buff`
-3. Copies data from userspace to kernel buffer
-
-### Stage 2: Socket Layer
-
-**For TCP**:
-- Check socket state (ESTABLISHED?)
-- Flow control check
-- Copy data to send buffer
-- TCP segmentation
-- Trigger transmission
-
-**For UDP**:
-- Build UDP header
-- Calculate checksum
-- Pass to IP layer
-
-### Stage 3: L4 Processing
-
-**TCP adds**:
-- Source/destination port
-- Sequence number
-- ACK number
-- Window size
-- Flags (SYN, ACK, PSH, FIN)
-- Checksum
-
-**UDP adds**:
-- Source/destination port
-- Length
-- Checksum
-
-### Stage 4: L3 Processing - IP Layer
+### Receive Path (Simplified)
 
 ```
-ip_output()
-├── Build IP header
-│   ├── Version, IHL, TOS
-│   ├── Total length
-│   ├── ID, flags, fragment offset
-│   ├── TTL, protocol
-│   ├── Checksum
-│   └── Source/destination IP
-├── Routing lookup
-├── Netfilter: OUTPUT chain
-└── Continue to post-routing
+Physical Wire
+    ↓
+NIC Hardware (Frame validation, DMA to ring buffer)
+    ↓
+Interrupt/NAPI (Driver notification)
+    ↓
+Driver Processing (GRO, checksum validation)
+    ↓
+netif_receive_skb() → __netif_receive_skb_core()
+    ↓
+PROTOCOL DEMULTIPLEXING (lookup handler for IPv4/IPv6/ARP/etc)
+    ↓
+ip_rcv() - IP validation, checksum
+    ↓
+Netfilter PREROUTING (DNAT, packet marking)
+    ↓
+Routing Decision: ip_route_input()
+    ↓
+    ├─→ Local delivery: ip_local_deliver()
+    │       ↓
+    │   Netfilter INPUT
+    │       ↓
+    │   L4: tcp_v4_rcv() or udp_rcv()
+    │       ↓
+    │   Socket buffer
+    │       ↓
+    │   Application (recv system call)
+    │
+    └─→ Forwarding: ip_forward()
+            ↓
+        Netfilter FORWARD
+            ↓
+        Netfilter POSTROUTING (SNAT)
+            ↓
+        Transmit on output interface
 ```
 
-### Stage 5: Routing
+### Transmit Path (Simplified)
 
-Determines:
-1. Which interface to send from
-2. Next hop IP address
-3. MTU (Maximum Transmission Unit)
-
-### Stage 6: Netfilter POSTROUTING
-
-**This is where SNAT happens!**
-- Private IP → Public IP translation
-- Port translation (PAT/NAT)
-- Connection tracking updates
-
-### Stage 7: L2 Processing
-
-**ARP Resolution** (if needed):
 ```
-Need MAC for next hop
-├── Check ARP cache
-├── If not found:
-│   ├── Send ARP request
-│   └── Queue packet
-└── If found: Use MAC
+Application (send system call)
+    ↓
+Socket layer (sock_sendmsg)
+    ↓
+L4: tcp_sendmsg() or udp_sendmsg()
+    ↓
+L3: ip_queue_xmit() - Build IP header
+    ↓
+Netfilter OUTPUT (Filtering)
+    ↓
+Routing: ip_route_output() - Find output interface
+    ↓
+Netfilter POSTROUTING (SNAT/MASQUERADE)
+    ↓
+Neighbor resolution (ARP lookup)
+    ↓
+Add L2 header (Ethernet)
+    ↓
+Traffic Control / QoS (tc qdiscs)
+    ↓
+Device driver (TX ring setup)
+    ↓
+NIC Hardware (DMA, TSO, checksum offload)
+    ↓
+Physical Wire
 ```
-
-**Build Ethernet Header**:
-- Destination MAC (6 bytes)
-- Source MAC (6 bytes)
-- EtherType (2 bytes): 0x0800 for IPv4
-
-### Stage 8: Traffic Control (QoS) - The Queue Master
-
-**Queue Disciplines (qdiscs)**:
-```
-┌─────────────────────────────┐
-│  Traffic Control            │
-│  ┌─────────┐                │
-│  │ Root    │  qdisc         │
-│  │ qdisc   │                │
-│  └────┬────┘                │
-│       │                     │
-│  ┌────┴────┬────────┐       │
-│  ▼         ▼        ▼       │
-│ Queue1  Queue2  Queue3      │
-└─────────────────────────────┘
-```
-
-**Common qdiscs**:
-- **pfifo_fast**: Default, 3 priority bands
-- **HTB**: Rate limiting
-- **SFQ**: Fairness
-- **FQ_CODEL**: Modern, reduces bufferbloat
-
-### Stage 9: Device Driver
-
-1. Check TX queue status
-2. Set up DMA mapping
-3. Build TX descriptor
-4. Apply hardware offloads (TSO, checksum)
-5. Write descriptor to TX ring
-6. Notify hardware
-
-### Stage 10: NIC Transmission
-
-1. NIC reads TX descriptor via DMA
-2. NIC reads packet data via DMA
-3. NIC applies hardware offloads
-4. NIC adds Ethernet FCS
-5. NIC transmits on wire
-
-**The packet has left the building!** 🚀
 
 ---
 
-## Key Kernel Subsystems
+## Key Insights
 
-### 1. Netfilter / iptables - The Filter & Transformer
+### 1. No Separate "L2" and "L3" Stages
+The kernel doesn't process Ethernet separately from IP. Instead:
+- Driver strips Ethernet header with `eth_type_trans()`
+- `__netif_receive_skb_core()` immediately demultiplexes to protocol handler
+- For IPv4 packets, `ip_rcv()` is called directly
 
-**Hook Points**:
-```
-PREROUTING → [routing] → FORWARD → POSTROUTING
-                ↓
-             INPUT → [local] → OUTPUT
-```
+### 2. Netfilter Has 5 Hook Points
+- **PREROUTING**: Before routing (for DNAT)
+- **INPUT**: To local process
+- **FORWARD**: Router/forwarding
+- **OUTPUT**: From local process
+- **POSTROUTING**: After routing (for SNAT)
 
-**Tables** (priority order):
-1. **raw**: Connection tracking exclusions
-2. **mangle**: Packet modification (TOS, TTL, MARK)
-3. **nat**: Network Address Translation
-4. **filter**: Packet filtering (ACCEPT, DROP)
+### 3. Routing Decides the Path
+`ip_route_input()` determines whether packet is:
+- For us (`ip_local_deliver`) → goes through INPUT hook
+- To forward (`ip_forward`) → goes through FORWARD hook
 
-**Example Rules**:
+### 4. Connection Tracking is Central
+Required for:
+- Stateful firewalls (`-m state --state ESTABLISHED,RELATED`)
+- NAT (remembering translations)
+- Related connections (FTP data channel)
+
+### 5. Optimizations are Everywhere
+- **Hardware**: RSS, TSO, checksum offload
+- **Driver**: NAPI, GRO
+- **Software**: RPS, RFS, GSO
+- Understanding these is key to performance
+
+---
+
+## Use Cases
+
+### For Students
+- Learn real Linux networking (not just theory)
+- Understand what happens when you run `curl` or `ping`
+- Prepare for networking certifications
+- Computer science networking courses
+
+### For System Administrators
+- Debug network issues effectively
+- Configure firewalls (`iptables`) correctly
+- Optimize network performance
+- Understand routing and NAT
+
+### For Developers
+- Build network tools (tcpdump, Wireshark alternatives)
+- Implement BPF/XDP programs
+- Create visualizations
+- Develop educational games
+
+### For Game Designers
+- Use "Kernel Mage" concept as inspiration
+- Understand how to gamify technical concepts
+- Create engaging educational content
+
+---
+
+## Getting Started
+
+### Quick Start - RX Path
+1. Read **[RX Path](docs/01-RX-Path.md)** for complete receive flow
+2. Look at **[Network Optimizations](docs/02-Network-Optimizations.md)** to understand NAPI, GRO, RSS
+3. Check **[Netfilter & Routing](docs/04-Netfilter-and-Routing.md)** for different scenarios
+
+### Quick Start - TX Path
+1. Read **[TX Path](docs/03-TX-Path.md)** for complete transmit flow
+2. Look at **[Network Optimizations](docs/02-Network-Optimizations.md)** for GSO, TSO, XPS
+3. Check **[Netfilter & Routing](docs/04-Netfilter-and-Routing.md)** for NAT configuration
+
+### Quick Start - Game Development
+1. Read **[Game Design](docs/05-Game-Design.md)** for complete concept
+2. Understand the RX and TX paths (realms in the game)
+3. Map real kernel features to game mechanics
+
+---
+
+## Kernel Source Locations
+
+### Core Files
+- `net/core/dev.c` - Core device handling, `netif_receive_skb()`, `dev_queue_xmit()`
+- `net/core/skbuff.c` - `sk_buff` management
+- `net/core/neighbour.c` - ARP and neighbor discovery
+
+### IPv4
+- `net/ipv4/ip_input.c` - `ip_rcv()`, `ip_local_deliver()`
+- `net/ipv4/ip_output.c` - `ip_output()`, `ip_queue_xmit()`
+- `net/ipv4/route.c` - Routing tables
+- `net/ipv4/tcp.c` - TCP socket operations
+- `net/ipv4/tcp_ipv4.c` - `tcp_v4_rcv()`
+- `net/ipv4/udp.c` - `udp_rcv()`, UDP operations
+
+### Netfilter
+- `net/netfilter/core.c` - Netfilter core
+- `net/ipv4/netfilter/ip_tables.c` - iptables
+- `net/netfilter/nf_conntrack_core.c` - Connection tracking
+
+### Traffic Control
+- `net/sched/` - Queue disciplines (qdiscs)
+- `net/sched/sch_api.c` - TC API
+
+### Device Drivers
+- `drivers/net/ethernet/` - Various NIC drivers
+- `drivers/net/ethernet/intel/e1000e/` - Intel e1000e (example)
+
+---
+
+## Tools for Exploration
+
+### Packet Capture
 ```bash
-# Drop incoming SSH from specific IP
-iptables -A INPUT -p tcp --dport 22 -s 1.2.3.4 -j DROP
+# Capture packets
+tcpdump -i eth0 -nn -vv
 
-# SNAT outgoing packets
-iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+# Capture to file
+tcpdump -i eth0 -w capture.pcap
 
-# Mark packets for QoS
-iptables -t mangle -A PREROUTING -p tcp --dport 80 -j MARK --set-mark 1
-
-# Duplicate packets (TEE target)
-iptables -t mangle -A PREROUTING -j TEE --gateway 10.0.0.100
+# Analyze with tshark
+tshark -r capture.pcap
 ```
 
-### 2. Routing Subsystem
-
-**Routing Tables**:
+### Network Statistics
 ```bash
-# View routing table
+# Interface stats
+ip -s link show eth0
+
+# Routing tables
 ip route show
+ip route show table all
 
-# Add route
-ip route add 10.0.0.0/8 via 192.168.1.254
+# ARP cache
+ip neigh show
 
-# Policy routing
-ip rule add from 10.0.0.0/8 lookup 100
-ip route add default via 192.168.2.1 table 100
+# Connection tracking
+conntrack -L
 ```
 
-### 3. Bridge - The L2 Switch
-
-**MAC Learning**:
-```
-Packet arrives with source MAC aa:bb:cc:dd:ee:ff
-├── Learn: MAC is on this port
-└── Store in forwarding database (FDB)
-
-Packet with destination MAC
-├── Lookup in FDB
-├── Found → forward to specific port
-└── Not found → flood all ports
-```
-
-### 4. Network Namespaces - The Multiverse
-
-Each namespace has its own:
-- Network interfaces
-- Routing tables
-- Firewall rules
-- Sockets
-
+### Netfilter/iptables
 ```bash
-# Create namespace
-ip netns add ns1
+# View rules
+iptables -L -v -n
+iptables -t nat -L -v -n
+iptables -t mangle -L -v -n
 
-# Execute in namespace
-ip netns exec ns1 ip link list
+# Trace packets
+iptables -t raw -A PREROUTING -p tcp --dport 80 -j TRACE
+```
+
+### Performance Monitoring
+```bash
+# NIC settings
+ethtool -k eth0  # Offload features
+ethtool -g eth0  # Ring buffer sizes
+ethtool -S eth0  # Statistics
+
+# System tunables
+sysctl -a | grep net.
 ```
 
 ---
 
-## Packet Transformation & Duplication
+## Contributing
 
-### 1. NAT - The Teleporter
+Found an error? Have suggestions? This documentation aims to be:
+- **Accurate**: Based on actual kernel source code
+- **Educational**: Clear explanations with examples
+- **Practical**: Useful for real-world scenarios
 
-**SNAT (Source NAT)**:
-```
-Before: src=192.168.1.100:5000 → dst=8.8.8.8:53
-After:  src=203.0.113.10:12345 → dst=8.8.8.8:53
-```
-
-**DNAT (Destination NAT)**:
-```
-Before: src=203.0.113.50:5000 → dst=203.0.113.10:80
-After:  src=203.0.113.50:5000 → dst=192.168.1.100:8080
-```
-
-### 2. Packet Duplication - The Clone Spell
-
-**TEE Target**:
-```bash
-# Send copy to monitoring host
-iptables -t mangle -A PREROUTING -j TEE --gateway 10.0.0.100
-```
-
-**Process**:
-1. Original packet continues normal path
-2. Clone created with `skb_clone()`
-3. Clone routed to TEE gateway
-
-**Multicast**:
-```
-Sender → 224.0.0.1 (multicast group)
-├── Router duplicates packet
-├── Copy → Host A
-├── Copy → Host B
-└── Copy → Host C
-```
-
-### 3. Packet Mangling
-
-**Modify TTL**:
-```bash
-iptables -t mangle -A PREROUTING -j TTL --ttl-inc 1
-```
-
-**Modify TOS/DSCP** (QoS):
-```bash
-iptables -t mangle -A PREROUTING -p tcp --dport 22 \
-   -j DSCP --set-dscp-class EF
-```
-
-### 4. Fragmentation - The Splicing
-
-**When packet > MTU**:
-```
-Original (3000 bytes):
-┌──────────────────────────────────────┐
-│ IP Header │ Data (2980 bytes)        │
-└──────────────────────────────────────┘
-
-After fragmentation (MTU 1500):
-┌────────────────────────┐
-│ IP Hdr │ Fragment 1    │ (1480 bytes)
-├────────────────────────┤
-│ IP Hdr │ Fragment 2    │ (1500 bytes)
-└────────────────────────┘
-```
-
-### 5. Encapsulation - The Wrapper
-
-**VXLAN**:
-```
-┌────────────────────────────────────────────────────┐
-│ Outer Eth │ Outer IP │ UDP │ VXLAN │ Inner frame │
-└────────────────────────────────────────────────────┘
-```
-
-**GRE**:
-```
-┌─────────────────────────────────────────┐
-│ Outer IP │ GRE Hdr │ Inner IP │ Payload│
-└─────────────────────────────────────────┘
-```
+Feedback and corrections are welcome!
 
 ---
 
-## Game Design Ideas
+## Resources
 
-### Core Concept: "Kernel Mage: The Packet Journey"
+### Official Documentation
+- [Linux Kernel Networking Documentation](https://www.kernel.org/doc/html/latest/networking/)
+- [Netfilter Project](https://www.netfilter.org/)
 
-#### Theme
-You are a **Packet Mage** guiding packets through the mystical realms of the Linux Kernel.
+### Books
+- "Understanding Linux Network Internals" by Christian Benvenuti
+- "Linux Kernel Networking: Implementation and Theory" by Rami Rosen
 
-#### Realms (Game Levels)
-
-1. **The Hardware Realm** (NIC & DMA)
-2. **The Driver's Gate** (Device Driver)
-3. **The Ethernet Valley** (L2)
-4. **The IP Mountain** (L3)
-5. **The Transport Tower** (L4)
-6. **The Socket Sanctuary** (Socket Layer)
-7. **The Application Summit** (L7)
-
-#### Magic Spells (Based on Real Operations)
-
-- **Clone Spell**: Duplicate packets (TEE, multicast)
-- **Transform Spell**: NAT translation
-- **Invisibility Spell**: DROP in iptables
-- **Teleport Spell**: DNAT
-- **Time Spell**: TTL modification
-- **Shield Spell**: Firewall rules
-- **Fusion Spell**: GRO/GSO
-- **Splitting Spell**: Fragmentation
-- **Speed Spell**: QoS priority
-- **Portal Spell**: Tunneling
-
-#### Challenges
-
-1. **Routing Maze**: Find correct interface
-2. **Firewall Boss Fight**: Navigate iptables rules
-3. **Buffer Overflow**: Manage queues under load
-4. **ARP Quest**: Resolve MAC before timeout
-5. **MTU Puzzle**: Fragment correctly
-6. **Multicast Mission**: Duplicate to multiple destinations
-7. **NAT Translation**: Transform addresses
-8. **QoS Priority Queue**: Sort by importance
-
-#### Enemies/Obstacles
-
-- **DROP demons**: Firewall rules
-- **TTL decay**: Time running out
-- **Buffer dragons**: Full queues
-- **Checksum goblins**: Validation failures
-- **Fragment trolls**: Reassembly issues
-- **Loop serpents**: Routing loops
-- **Storm elementals**: Broadcast storms
-
-#### Power-ups
-
-- **Checksum Bypass**: Hardware offload
-- **Fast Path**: Route cache hit
-- **NAPI Mode**: Efficient polling
-- **Jumbo Frame**: Increased MTU
-- **TSO/GRO**: Hardware acceleration
-
-#### Visualization Example
-
-```
-┌────────────────────────────────────────┐
-│  Packet Mage                           │
-│  HP: [======    ] (buffer space)       │
-│  TTL: 64        Location: IP Layer     │
-├────────────────────────────────────────┤
-│     NIC → Driver → L2 → [L3] → L4     │
-│                        ▲               │
-│                       YOU              │
-│                                        │
-│  Current Challenge:                    │
-│  ┌──────────────────────────────────┐ │
-│  │  Netfilter Checkpoint            │ │
-│  │  Rule: DROP port 22              │ │
-│  │  [1] Try different port          │ │
-│  │  [2] Use ACCEPT spell            │ │
-│  └──────────────────────────────────┘ │
-└────────────────────────────────────────┘
-```
+### Online Resources
+- Kernel source code browser: https://elixir.bootlin.com/linux/latest/source
+- Packet flow diagram: https://en.wikipedia.org/wiki/Netfilter
 
 ---
 
-## Quick Reference
+## License
 
-### RX Path (Summary)
-```
-Wire → NIC → DMA → Ring → IRQ → Driver →
-netif_receive_skb → L2 → PREROUTING → Routing →
-INPUT/FORWARD → L4 → Socket → Application
-```
-
-### TX Path (Summary)
-```
-Application → Socket → L4 → OUTPUT → Routing →
-POSTROUTING → L2 → ARP → QoS → Driver →
-TX Ring → DMA → NIC → Wire
-```
-
-### Netfilter Hooks Order
-1. PREROUTING (incoming)
-2. INPUT (to local) / FORWARD (routing)
-3. OUTPUT (from local)
-4. POSTROUTING (outgoing)
-
-### Key Files in Kernel
-- `net/core/dev.c` - Core network device
-- `net/ipv4/ip_input.c` - IPv4 input
-- `net/ipv4/ip_output.c` - IPv4 output
-- `net/netfilter/` - Netfilter framework
-- `net/sched/` - Traffic control
+This documentation is created for educational purposes. Linux kernel is licensed under GPL-2.0.
 
 ---
 
