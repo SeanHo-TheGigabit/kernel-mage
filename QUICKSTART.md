@@ -1,4 +1,4 @@
-# KernelMage - Quick Start Guide
+# KernelMage Arena - Quick Start Guide
 
 ## Installation
 
@@ -20,66 +20,88 @@ python3 main.py
 ## Testing
 
 ```bash
+# Run arena tests
+python3 tests/test_arena.py
+
 # Run all tests
 python3 tests/run_all_tests.py
-
-# Run individual test suites
-python3 tests/test_entities.py
-python3 tests/test_magic.py
-python3 tests/test_network.py
-python3 tests/test_combat.py
 ```
 
 ## Quick Game Overview
 
-**KernelMage** is a turn-based ASCII RPG where **magic is network communication**:
+**KernelMage Arena** is a **simplified pure combat** game - fight sequential waves of enemies in a mage arena!
 
-- 🔥 **Essences** = Data types (fire, water, lightning, etc.)
+**No world map. No quests. Just pure combat!**
+
+### Core Mechanics
+
+- 🔥 **Essences** = Spell elements (Fire, Water, Lightning, etc.)
 - 🖥️ **Architectures** = CPU instruction sets (x86, ARM, RISC-V)
 - 📡 **Protocols** = Casting methods (TCP, UDP, ICMP)
-- 🎯 **DNS** = Targeting system
-- 📦 **Packets** = Spells traveling through the network
+- ⚔️ **Arena Rounds** = Sequential combat encounters
 
-### Combat Example
+### How to Play
+
+1. **Start** → Enter your mage name
+2. **Choose Architecture** → x86, ARM, or RISC-V
+3. **Fight Rounds** → Defeat waves of enemies
+4. **Rest** → Heal 30% HP/Mana between rounds
+5. **Survive** → How many rounds can you beat?
+
+### Combat Flow
 
 ```
-1. Explore → Enter Combat
-2. Select target (enemy #1)
-3. Choose essence (Fire)
-4. Choose protocol:
-   - TCP: Slow (3 turns), guaranteed hit, expensive
-   - UDP: Fast (1 turn), might miss, cheap
-5. Spell resolves, deal damage!
+Round 1: 1 Bandit (Easy)
+Round 2: 2 Bandits
+Round 3: 1 Corrupted Node (Stronger)
+Round 4: 3 Swarm Minions
+Round 5: Mixed enemies
+Round 6: Illusionist
+Round 7: 2 Corrupted Nodes
+Round 8: Gateway Boss (Very Hard!)
+Round 9+: Random hard encounters
 ```
+
+### Combat Actions
+
+- **[A] Attack**: Cast spell (choose target, essence, protocol)
+- **[P] Ping**: Scan enemy (shows HP, stats, weaknesses)
+- **[S] Switch Architecture**: Change CPU (costs 20 mana, 1 turn)
+- **[I] Inventory**: View essences
+- **[F] Flee**: Can't flee from arena!
+
+### Protocol Strategy
+
+- **TCP**: Slow (3 turns) but 100% accurate → Use for bosses
+- **UDP**: Fast (1 turn) but 70% accuracy → Use for weak enemies
+- **ICMP Ping**: Free scan, no damage → Use for info
 
 ### Architecture Strategy
 
-- **x86 CISC**: High damage, high cost → Use for bosses
-- **ARM RISC**: Low cost, efficient → Use for swarms
-- **RISC-V**: Balanced, modular → Use for flexibility
+- **x86 CISC**: 1.5x power, +1 turn → Maximum damage for bosses
+- **ARM RISC**: 0.6x cost, fast → Save mana, quick casts
+- **RISC-V**: Balanced → Good all-around
 
 ## Documentation
 
-- **README.md** - Complete game design (198KB!)
-- **GAMEPLAY.md** - How to play guide
+- **ARENA_GUIDE.md** - Complete arena guide
+- **QUICKSTART.md** - This file
 - **ARCHITECTURE.md** - Code structure
 - **EXTENDING.md** - How to add content
-- **QUICKSTART.md** - This file
 
 ## Project Stats
 
 - **Python 3.11+**
-- **2,400+ lines of code**
-- **33 passing tests**
-- **28 game files**
-- **Fully playable!**
+- **Simplified pure combat**
+- **Progressive difficulty**
+- **Score: Rounds survived**
 
 ## Key Files
 
 ```
 main.py                  # Run this to play!
 kernelmage/
-  ├── core/game.py      # Main game loop
+  ├── core/arena.py     # Arena game loop
   ├── entities/         # Player and enemies
   ├── magic/            # Spells and architectures
   ├── network/          # DNS, routing, packets
@@ -87,66 +109,38 @@ kernelmage/
   └── ui/               # Terminal interface
 ```
 
-## Extending the Game
-
-See **EXTENDING.md** for detailed guides on adding:
-- New enemies
-- Story events
-- Quests
-- Locations/dungeons
-- Items/equipment
-
-Example - Add a new enemy:
-
-```python
-# In kernelmage/entities/enemy.py
-def create_my_enemy() -> Enemy:
-    stats = Stats(max_hp=100, power=10, defense=5)
-    return Enemy(
-        name="My Enemy",
-        stats=stats,
-        symbol="M",
-        essence_drop=EssenceType.FIRE,
-        xp_reward=50
-    )
-```
-
-Then use it in encounters!
-
 ## Quick Commands
 
 ```bash
-# Play game
+# Play arena
 python3 main.py
 
-# Run tests
-python3 tests/run_all_tests.py
+# Run arena tests
+python3 tests/test_arena.py
 
 # Check imports
-python3 -c "from kernelmage.core.game import run_game; print('OK')"
+python3 -c "from kernelmage.core.arena import run_arena; print('OK')"
 ```
 
-## Game Controls
+## Tips for Success
 
-**Main Menu:**
-- `e` - Explore/Combat
-- `i` - Inventory
-- `a` - Architecture info
-- `s` - Switch architecture
-- `q` - Quit
+1. **Ping before attacking** - Know enemy HP and weaknesses
+2. **Manage mana** - Don't spam TCP or you'll run dry
+3. **UDP for weak enemies** - Save mana for harder rounds
+4. **TCP for bosses** - Can't afford to miss
+5. **Switch to ARM when low** - Conserve mana
+6. **Switch to x86 for power** - Maximize damage on tough enemies
+7. **Element weaknesses** - Fire beats Earth, Water beats Fire, etc.
 
-**Combat:**
-- `a` - Attack (cast spell)
-- `p` - Ping (reveal enemy stats)
-- `s` - Switch architecture
-- `f` - Flee
+## Scoring
 
-## Tips
+**Your score = Rounds survived**
 
-1. **Use Ping** to see enemy stats before attacking
-2. **UDP is great** for weak enemies (fast, cheap)
-3. **TCP for bosses** when you can't afford to miss
-4. **Switch to ARM** when low on mana
-5. **Switch to x86** for maximum damage
+- Round 1-4: Beginner
+- Round 5-7: Intermediate
+- Round 8: Boss fight!
+- Round 9+: Expert mode
 
-Enjoy the game! 🎮✨
+Can you beat the Gateway Boss in Round 8?
+
+Enjoy the arena! ⚔️🧙‍♂️
