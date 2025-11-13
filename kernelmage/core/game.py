@@ -10,6 +10,8 @@ from kernelmage.ui.display import Display
 from kernelmage.ui.combat_screen import CombatScreen
 from kernelmage.magic.spells import SpellSystem
 from kernelmage.magic.architectures import ArchitectureType, get_architecture
+from kernelmage.world.world_map import WorldMap, LocationId
+from kernelmage.world.events import EventManager
 import random
 
 
@@ -22,6 +24,10 @@ class GameState:
         self.current_encounter: Optional[CombatEncounter] = None
         self.display = Display()
         self.combat_screen = CombatScreen(self.display)
+
+        # World and events
+        self.world_map = WorldMap()
+        self.event_manager = EventManager()
 
         self.encounters_won = 0
         self.running = True
@@ -55,8 +61,17 @@ class GameState:
         self.display.show_player_stats(self.player)
         self.display.console.print()
 
+        # Show current location
+        current_loc = self.world_map.current_location
+        self.display.console.print(
+            f"📍 Location: [cyan]{current_loc.name}[/cyan] ({current_loc.subnet})\n"
+        )
+
         options = [
-            ("e", "Enter Combat (Test Encounter)"),
+            ("e", f"Explore {current_loc.name}"),
+            ("m", "View Map"),
+            ("t", "Travel"),
+            ("v", "View Events"),
             ("i", "View Inventory"),
             ("a", "View Architecture"),
             ("s", "Switch Architecture"),
@@ -68,10 +83,25 @@ class GameState:
     def handle_main_menu(self):
         """Handle main menu interaction."""
         while self.running:
+            # Check for story events
+            event = self.event_manager.check_events(
+                self.player.level,
+                self.encounters_won,
+                self.world_map.current_location_id.value
+            )
+            if event:
+                self.show_story_event(event)
+
             choice = self.show_main_menu()
 
             if choice == "e":
-                self.start_random_encounter()
+                self.explore_current_location()
+            elif choice == "m":
+                self.show_map()
+            elif choice == "t":
+                self.travel_menu()
+            elif choice == "v":
+                self.show_events()
             elif choice == "i":
                 self.show_inventory()
             elif choice == "a":
@@ -259,6 +289,175 @@ class GameState:
         self.architecture_menu()
         # Switching costs a turn
         encounter.next_turn()
+
+    def show_map(self):
+        """Show the world map."""
+        self.display.clear()
+
+        # Show ASCII map
+        map_ascii = self.world_map.get_map_ascii(self.player.level)
+        self.display.console.print(map_ascii)
+        self.display.console.print()
+
+        # Show current location info
+        current_loc = self.world_map.current_location
+        info = self.world_map.get_location_info(current_loc.location_id)
+        self.display.console.print(info)
+
+        self.display.pause()
+
+    def travel_menu(self):
+        """Show travel menu."""
+        self.display.clear()
+
+        current_loc = self.world_map.current_location
+        connected = self.world_map.get_connected_locations()
+
+        if not connected:
+            self.display.show_message("No connected locations!", style="yellow")
+            self.display.pause()
+            return
+
+        self.display.console.print(f"\n[bold]Travel from {current_loc.name}[/bold]\n")
+
+        for i, loc in enumerate(connected, 1):
+            # Check if accessible
+            accessible = loc.can_access(self.player.level)
+            discovered = self.world_map.is_discovered(loc.location_id)
+
+            if discovered:
+                status = ""
+                if not accessible:
+                    status = f" [red](Level {loc.required_level} required)[/red]"
+                elif loc.is_safe_zone:
+                    status = " [green](Safe)[/green]"
+                elif loc.is_dungeon:
+                    status = f" [red](Dungeon - Danger {loc.danger_level})[/red]"
+
+                self.display.console.print(
+                    f"[{i}] {loc.name}{status}\n"
+                    f"    {loc.description}\n"
+                )
+            else:
+                self.display.console.print(
+                    f"[{i}] ??? (Undiscovered)\n"
+                )
+
+        choice = self.display.prompt_input("\nSelect destination (or 'c' to cancel):")
+
+        if choice.lower() == 'c':
+            return
+
+        try:
+            idx = int(choice) - 1
+            destination = connected[idx]
+
+            success, message = self.world_map.travel_to(
+                destination.location_id,
+                self.player.level
+            )
+
+            self.display.show_message(message, style="green" if success else "red")
+        except (ValueError, IndexError):
+            self.display.show_message("Invalid choice!", style="red")
+
+        self.display.pause()
+
+    def show_events(self):
+        """Show event status and available events."""
+        self.display.clear()
+
+        self.display.console.print("\n[bold cyan]Story Events[/bold cyan]\n")
+
+        # Show event status
+        status = self.event_manager.get_event_status()
+        self.display.console.print(status)
+        self.display.console.print()
+
+        # Show available events
+        available = self.event_manager.get_available_events_summary(
+            self.player.level,
+            self.encounters_won,
+            self.world_map.current_location_id.value
+        )
+        self.display.console.print(available)
+
+        self.display.pause()
+
+    def show_story_event(self, event):
+        """Display a story event."""
+        self.display.clear()
+
+        self.display.print_panel(
+            event.description,
+            title=f"[bold yellow]{event.title}[/bold yellow]",
+            style="cyan"
+        )
+
+        if event.choices:
+            self.display.console.print()
+            choice = self.display.show_menu("What do you do?", event.choices)
+            # Handle choice (basic for now)
+            self.handle_event_choice(event, choice)
+
+        event.trigger()
+        self.display.pause()
+
+    def handle_event_choice(self, event, choice: str):
+        """Handle player choice in event."""
+        # Basic handling - can be expanded
+        if event.event_id == "welcome" and choice == "y":
+            self.display.show_message("Quest accepted! May the packets be with you.", style="green")
+        elif event.event_id == "welcome" and choice == "n":
+            self.display.show_message("Prepare well, young mage.", style="yellow")
+
+        # Mark event as completed
+        event.complete()
+
+    def explore_current_location(self):
+        """Explore current location (trigger encounter)."""
+        location = self.world_map.current_location
+
+        if location.is_safe_zone:
+            self.display.show_message(
+                "This is a safe zone. No enemies here.\nRest and prepare for your journey.",
+                style="green"
+            )
+            self.display.pause()
+            return
+
+        # Generate encounter based on location
+        self.start_location_encounter(location)
+
+    def start_location_encounter(self, location):
+        """Start an encounter based on location."""
+        if not location.enemy_types:
+            self.display.show_message("No encounters in this area.", style="yellow")
+            self.display.pause()
+            return
+
+        # Determine number of enemies
+        num_enemies = random.randint(location.min_enemies, location.max_enemies)
+
+        # Create enemies based on location
+        enemies = []
+        enemy_factories = {
+            "bandit": create_bandit,
+            "swarm_minion": create_swarm_minion,
+            "corrupted_node": create_corrupted_node,
+            "illusionist": create_illusionist,
+            "gateway_boss": create_gateway_boss,
+        }
+
+        for _ in range(num_enemies):
+            enemy_type = random.choice(location.enemy_types)
+            factory = enemy_factories.get(enemy_type)
+            if factory:
+                enemies.append(factory())
+
+        if enemies:
+            self.current_encounter = create_encounter(self.player, enemies)
+            self.run_combat()
 
 
 def run_game():

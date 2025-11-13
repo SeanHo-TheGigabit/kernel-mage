@@ -30,6 +30,7 @@ def main():
         'test_magic.py',
         'test_network.py',
         'test_combat.py',
+        'test_e2e.py',
     ]
 
     results = {}
