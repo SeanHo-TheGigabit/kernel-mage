@@ -75,7 +75,7 @@ Not all packets follow the same path! Understand:
 **Learn**: iptables, routing tables, policy routing, connection tracking
 
 ### 5. [Game Design - "Kernel Mage"](docs/05-Game-Design.md)
-Educational game concept based on packet journey:
+Educational adventure game concept based on packet journey:
 - 9 realms (NIC → Application)
 - Magic spells based on real features (GRO, NAT, TSO)
 - Boss fights (Netfilter checkpoints)
@@ -84,6 +84,19 @@ Educational game concept based on packet journey:
 - Implementation ideas
 
 **Learn**: How to make networking concepts fun and engaging!
+
+### 6. [Kernel Duel - PvP Game Design](docs/06-Kernel-Duel-Game-Design.md) ⚔️ NEW!
+Competitive wizard duel game where your wand IS a Linux kernel:
+- **Your wand = Your kernel** (configure iptables rules to defend)
+- **Magic = Packets** (fire🔥, water💧, lightning⚡)
+- **Essence buffer = Socket buffer** (10 magic essence max)
+- **Combo system**: Consume 1-3 essence in sequence for different spells
+- **Mixed magic**: Like multi-protocol packets (requires DPI to parse)
+- **Fake packets**: Disrupt opponent's combos (SYN flood equivalent)
+- **tcpdump = Inspect** opponent's casting patterns
+- **Win condition**: Destroy opponent's wand!
+
+**Learn**: iptables, buffer management, NAT, connection tracking, DoS defense - all through PvP combat!
 
 ---
 
