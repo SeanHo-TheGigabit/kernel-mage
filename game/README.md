@@ -2,6 +2,10 @@
 
 PvP wizard combat where your wand is a Linux kernel!
 
+**→ Want to play immediately?** See **[QUICKSTART.md](QUICKSTART.md)** (30 seconds to start!)
+
+---
+
 ## Architecture
 
 ```
