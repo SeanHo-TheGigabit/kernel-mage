@@ -1,0 +1,203 @@
+[gd_scene load_steps=2 format=3 uid="uid://main_scene"]
+
+[ext_resource type="Script" path="res://scripts/Main.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/GameClient.gd" id="2"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="GameClient" type="Node" parent="."]
+script = ExtResource("2")
+
+[node name="ConnectionPanel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -150.0
+offset_right = 200.0
+offset_bottom = 150.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="ConnectionPanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Title" type="Label" parent="ConnectionPanel/VBox"]
+layout_mode = 2
+text = "KERNEL DUEL"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="ConnectionPanel/VBox"]
+layout_mode = 2
+text = "PvP Wizard Combat"
+horizontal_alignment = 1
+
+[node name="Spacer1" type="Control" parent="ConnectionPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="PlayerNameLabel" type="Label" parent="ConnectionPanel/VBox"]
+layout_mode = 2
+text = "Player Name:"
+
+[node name="PlayerNameInput" type="LineEdit" parent="ConnectionPanel/VBox"]
+layout_mode = 2
+placeholder_text = "Enter your name"
+
+[node name="RoomIDLabel" type="Label" parent="ConnectionPanel/VBox"]
+layout_mode = 2
+text = "Room ID (optional):"
+
+[node name="RoomIDInput" type="LineEdit" parent="ConnectionPanel/VBox"]
+layout_mode = 2
+placeholder_text = "Leave empty to create new room"
+
+[node name="Spacer2" type="Control" parent="ConnectionPanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ConnectButton" type="Button" parent="ConnectionPanel/VBox"]
+layout_mode = 2
+text = "Connect"
+
+[node name="GamePanel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="GamePanel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TopBar" type="HBoxContainer" parent="GamePanel/VBox"]
+layout_mode = 2
+
+[node name="TurnLabel" type="Label" parent="GamePanel/VBox/TopBar"]
+layout_mode = 2
+text = "Turn 1"
+
+[node name="PhaseLabel" type="Label" parent="GamePanel/VBox/TopBar"]
+layout_mode = 2
+text = "INCOMING"
+
+[node name="RoomLabel" type="Label" parent="GamePanel/VBox/TopBar"]
+layout_mode = 2
+size_flags_horizontal = 10
+text = "Room: ..."
+
+[node name="PlayerWand" type="VBoxContainer" parent="GamePanel/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="GamePanel/VBox/PlayerWand"]
+layout_mode = 2
+text = "YOUR WAND"
+horizontal_alignment = 1
+
+[node name="HPBar" type="ProgressBar" parent="GamePanel/VBox/PlayerWand"]
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="HPLabel" type="Label" parent="GamePanel/VBox/PlayerWand"]
+layout_mode = 2
+text = "100/100 HP"
+
+[node name="ShieldLabel" type="Label" parent="GamePanel/VBox/PlayerWand"]
+layout_mode = 2
+text = ""
+
+[node name="CPULabel" type="Label" parent="GamePanel/VBox/PlayerWand"]
+layout_mode = 2
+text = "CPU: 100/100"
+
+[node name="BufferContainer" type="HBoxContainer" parent="GamePanel/VBox/PlayerWand"]
+layout_mode = 2
+
+[node name="RulesLabel" type="Label" parent="GamePanel/VBox/PlayerWand"]
+layout_mode = 2
+text = "Rules: 0"
+
+[node name="EnemyWand" type="VBoxContainer" parent="GamePanel/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="GamePanel/VBox/EnemyWand"]
+layout_mode = 2
+text = "ENEMY WAND"
+horizontal_alignment = 1
+
+[node name="HPBar" type="ProgressBar" parent="GamePanel/VBox/EnemyWand"]
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="HPLabel" type="Label" parent="GamePanel/VBox/EnemyWand"]
+layout_mode = 2
+text = "100/100 HP"
+
+[node name="ShieldLabel" type="Label" parent="GamePanel/VBox/EnemyWand"]
+layout_mode = 2
+text = ""
+
+[node name="CPULabel" type="Label" parent="GamePanel/VBox/EnemyWand"]
+layout_mode = 2
+text = "CPU: 100/100"
+
+[node name="BufferCount" type="Label" parent="GamePanel/VBox/EnemyWand"]
+layout_mode = 2
+text = "Buffer: 0 (hidden)"
+
+[node name="RulesLabel" type="Label" parent="GamePanel/VBox/EnemyWand"]
+layout_mode = 2
+text = "Rules: 0"
+
+[node name="Actions" type="HBoxContainer" parent="GamePanel/VBox"]
+layout_mode = 2
+
+[node name="Cast1" type="Button" parent="GamePanel/VBox/Actions"]
+layout_mode = 2
+text = "Cast 1"
+
+[node name="Cast2" type="Button" parent="GamePanel/VBox/Actions"]
+layout_mode = 2
+text = "Cast 2"
+
+[node name="Cast3" type="Button" parent="GamePanel/VBox/Actions"]
+layout_mode = 2
+text = "Cast 3"
+
+[node name="ConfigureRule" type="Button" parent="GamePanel/VBox/Actions"]
+layout_mode = 2
+text = "Configure Rule"
+
+[node name="Ready" type="Button" parent="GamePanel/VBox/Actions"]
+layout_mode = 2
+text = "Ready"
+
+[node name="BattleLog" type="TextEdit" parent="GamePanel/VBox"]
+layout_mode = 2
+size_flags_vertical = 3
+editable = false
