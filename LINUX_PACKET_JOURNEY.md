@@ -1,374 +1,267 @@
-# The Journey of a Network Packet Through the Linux Kernel
+# Linux Kernel Networking Documentation
 
-> A comprehensive guide to understanding how packets flow through the Linux network stack - from NIC hardware to application layer and back. Perfect for building educational games and visualizations!
-
-## About This Documentation
-
-This documentation provides an **accurate, detailed** exploration of how the Linux kernel processes network packets. It includes:
-- ✓ Real function names and file locations
-- ✓ Actual code flows (not just concepts)
-- ✓ Different scenarios and edge cases
-- ✓ Performance optimizations explained
-- ✓ Educational game design concepts
-
-**Important**: Early versions incorrectly described separate "L2" and "L3" stages. The kernel actually uses **protocol demultiplexing** - `__netif_receive_skb_core()` looks up the protocol handler directly based on EtherType. This documentation has been corrected based on kernel source research.
-
----
+> Technical reference for understanding Linux network stack packet flow - foundation for educational game development
 
 ## Documentation Structure
 
-This guide is organized into focused documents:
+### 📚 Technical Reference (Kernel Internals)
 
-### 1. [RX Path - Receive Journey](docs/01-RX-Path.md)
-Complete packet receive path with real kernel functions:
-- NIC hardware → DMA → Ring Buffer
-- Interrupts & NAPI
-- Protocol demultiplexing (the actual flow!)
-- Netfilter PRE_ROUTING
-- Routing decision (local vs forward)
-- L4 processing (TCP/UDP)
-- Socket delivery → Application
+Located in `docs/technical/`:
 
-**Learn**: `netif_receive_skb()`, `__netif_receive_skb_core()`, `ip_rcv()`, `tcp_v4_rcv()`
+- **[RX Path](docs/technical/01-RX-Path.md)** - Complete packet receive flow
+- **[Network Optimizations](docs/technical/02-Network-Optimizations.md)** - NAPI, GRO, RSS, RPS, TSO
+- **[TX Path](docs/technical/03-TX-Path.md)** - Complete packet transmit flow
+- **[Netfilter & Routing](docs/technical/04-Netfilter-and-Routing.md)** - Different packet paths, NAT, connection tracking
 
-### 2. [Network Optimizations](docs/02-Network-Optimizations.md)
-Performance features that make Linux networking fast:
-- **NAPI** - Interrupt mitigation
-- **GRO** - Generic Receive Offload
-- **RSS** - Receive Side Scaling (hardware)
-- **RPS/RFS** - Receive Packet Steering (software)
-- **GSO/TSO** - Segmentation offload
-- **XPS** - Transmit Packet Steering
-- Checksum offloading
-- Zero-copy techniques
+### 🎮 Game Design (Kernel Duel)
 
-**Learn**: How these optimizations work, when to use them, how to tune them
+Located in `docs/game/`:
 
-### 3. [TX Path - Transmit Journey](docs/03-TX-Path.md)
-Complete packet transmit path with real kernel functions:
-- Application → System call
-- Socket layer → TCP/UDP
-- IP layer → Header construction
-- Netfilter OUTPUT & POSTROUTING
-- Routing → Next hop selection
-- ARP resolution → MAC address
-- Traffic Control (QoS)
-- Device driver → DMA → NIC
+- **[Core Mechanics](docs/game/core-mechanics.md)** ⭐ **START HERE**
+  - Clear values and rules
+  - Resource management (HP, Essence, CPU)
+  - Turn structure (real-time incoming essence)
+  - Defense rules (iptables-like configuration)
+  - Balance mechanisms
 
-**Learn**: `tcp_sendmsg()`, `ip_queue_xmit()`, `dev_queue_xmit()`, qdisc system
+- **[Magic Combos](docs/game/magic-combos.md)** - Complete spell reference
+  - All 76 spell combinations
+  - Damage values and special effects
+  - Combo building strategies
+  - Tier list and meta analysis
 
-### 4. [Netfilter & Routing - Different Paths](docs/04-Netfilter-and-Routing.md)
-Not all packets follow the same path! Understand:
-- **Netfilter hook points**: PREROUTING, INPUT, FORWARD, OUTPUT, POSTROUTING
-- **Routing decisions**: Local delivery vs forwarding
-- **NAT**: DNAT and SNAT (when and where)
-- **Connection tracking**: Stateful firewalls
-- **Different scenarios**:
-  - Local delivery (normal)
-  - Forwarding (router mode)
-  - DNAT port forwarding
-  - Packet dropped by firewall
-  - Packet duplication (TEE)
-  - Locally generated traffic
-  - Loopback traffic
+- **[Balance Analysis](docs/game/balance-analysis.md)** - Strategy deep-dive
+  - 10 attack/defense strategies analyzed
+  - Mathematical proof: No perfect build exists
+  - Counter-strategy matrix
+  - Skill expression mechanics
 
-**Learn**: iptables, routing tables, policy routing, connection tracking
+### 📝 Drafts & Discussions
 
-### 5. [Game Design - "Kernel Mage"](docs/05-Game-Design.md)
-Educational adventure game concept based on packet journey:
-- 9 realms (NIC → Application)
-- Magic spells based on real features (GRO, NAT, TSO)
-- Boss fights (Netfilter checkpoints)
-- Learning mechanics
-- Multiplayer modes
-- Implementation ideas
+Located in `docs/drafts/`:
 
-**Learn**: How to make networking concepts fun and engaging!
-
-### 6. [Kernel Duel - PvP Game Design](docs/06-Kernel-Duel-Game-Design.md) ⚔️ NEW!
-Competitive wizard duel game where your wand IS a Linux kernel:
-- **Your wand = Your kernel** (configure iptables rules to defend)
-- **Magic = Packets** (fire🔥, water💧, lightning⚡)
-- **Essence buffer = Socket buffer** (10 magic essence max)
-- **Combo system**: Consume 1-3 essence in sequence for different spells
-- **Mixed magic**: Like multi-protocol packets (requires DPI to parse)
-- **Fake packets**: Disrupt opponent's combos (SYN flood equivalent)
-- **tcpdump = Inspect** opponent's casting patterns
-- **Win condition**: Destroy opponent's wand!
-
-**Learn**: iptables, buffer management, NAT, connection tracking, DoS defense - all through PvP combat!
+- **kernel-mage-adventure.md** - Single-player adventure game concept (alternative design)
+- **kernel-duel-initial-design.md** - Initial PvP design (superseded by docs/game/)
 
 ---
 
-## The Big Picture
+## Quick Start - Game Design
+
+### Core Concept
+
+**Kernel Duel** - PvP wizard combat where:
+- Your wand = Linux kernel (you configure iptables-like rules)
+- Magic = Network packets (7 types: fire🔥, water💧, lightning⚡, nature🌿, ice🧊, dark🌑, light✨)
+- Essence buffer = Socket buffer (10 max capacity)
+- Win condition = Destroy opponent's wand (reduce HP to 0)
+
+### Key Mechanics
+
+**Real-time Pressure**:
+- 3 magic essence arrive per turn (automatic)
+- Buffer capacity: 10 max
+- Must cast spells or take overflow damage (10 HP per overflow)
+
+**Defense Configuration (iptables)**:
+- PREROUTING: Filter incoming magic
+- INPUT: Buffer management strategy
+- POSTROUTING: Transform outgoing attacks
+- Each rule costs CPU per turn
+
+**Resource Triangle**:
+```
+     Defense (CPU cost)
+        /    \
+       /      \
+      /        \
+Essence Gain ←→ Attack Power
+```
+
+**Balance**: Perfect defense → No essence → Cannot attack → Lose by starvation (5 turns)
+
+### Read in Order
+
+1. **[Core Mechanics](docs/game/core-mechanics.md)** - Understand the rules
+2. **[Magic Combos](docs/game/magic-combos.md)** - Learn the spells
+3. **[Balance Analysis](docs/game/balance-analysis.md)** - Study strategies
+
+---
+
+## Technical Reference - Packet Flow
 
 ### Receive Path (Simplified)
 
 ```
 Physical Wire
     ↓
-NIC Hardware (Frame validation, DMA to ring buffer)
+NIC Hardware (DMA to ring buffer)
     ↓
-Interrupt/NAPI (Driver notification)
+Driver (NAPI, GRO)
     ↓
-Driver Processing (GRO, checksum validation)
+__netif_receive_skb_core() [Protocol demultiplexing]
     ↓
-netif_receive_skb() → __netif_receive_skb_core()
+ip_rcv() [IP validation]
     ↓
-PROTOCOL DEMULTIPLEXING (lookup handler for IPv4/IPv6/ARP/etc)
+Netfilter PREROUTING [DNAT, marking]
     ↓
-ip_rcv() - IP validation, checksum
+Routing Decision
     ↓
-Netfilter PREROUTING (DNAT, packet marking)
-    ↓
-Routing Decision: ip_route_input()
-    ↓
-    ├─→ Local delivery: ip_local_deliver()
-    │       ↓
-    │   Netfilter INPUT
-    │       ↓
-    │   L4: tcp_v4_rcv() or udp_rcv()
-    │       ↓
-    │   Socket buffer
-    │       ↓
-    │   Application (recv system call)
-    │
-    └─→ Forwarding: ip_forward()
-            ↓
-        Netfilter FORWARD
-            ↓
-        Netfilter POSTROUTING (SNAT)
-            ↓
-        Transmit on output interface
+    ├─→ ip_local_deliver() → INPUT → TCP/UDP → Socket → App
+    └─→ ip_forward() → FORWARD → POSTROUTING → TX
 ```
 
 ### Transmit Path (Simplified)
 
 ```
-Application (send system call)
+Application
     ↓
-Socket layer (sock_sendmsg)
+Socket → TCP/UDP
     ↓
-L4: tcp_sendmsg() or udp_sendmsg()
+IP layer (build headers)
     ↓
-L3: ip_queue_xmit() - Build IP header
+Netfilter OUTPUT [Filtering]
     ↓
-Netfilter OUTPUT (Filtering)
+Routing (find output interface)
     ↓
-Routing: ip_route_output() - Find output interface
+Netfilter POSTROUTING [SNAT/MASQUERADE]
     ↓
-Netfilter POSTROUTING (SNAT/MASQUERADE)
+ARP resolution → L2 header
     ↓
-Neighbor resolution (ARP lookup)
+Traffic Control (QoS)
     ↓
-Add L2 header (Ethernet)
-    ↓
-Traffic Control / QoS (tc qdiscs)
-    ↓
-Device driver (TX ring setup)
-    ↓
-NIC Hardware (DMA, TSO, checksum offload)
-    ↓
-Physical Wire
+Driver → NIC → Wire
 ```
 
----
+### Key Insights
 
-## Key Insights
-
-### 1. No Separate "L2" and "L3" Stages
-The kernel doesn't process Ethernet separately from IP. Instead:
-- Driver strips Ethernet header with `eth_type_trans()`
-- `__netif_receive_skb_core()` immediately demultiplexes to protocol handler
-- For IPv4 packets, `ip_rcv()` is called directly
-
-### 2. Netfilter Has 5 Hook Points
-- **PREROUTING**: Before routing (for DNAT)
-- **INPUT**: To local process
-- **FORWARD**: Router/forwarding
-- **OUTPUT**: From local process
-- **POSTROUTING**: After routing (for SNAT)
-
-### 3. Routing Decides the Path
-`ip_route_input()` determines whether packet is:
-- For us (`ip_local_deliver`) → goes through INPUT hook
-- To forward (`ip_forward`) → goes through FORWARD hook
-
-### 4. Connection Tracking is Central
-Required for:
-- Stateful firewalls (`-m state --state ESTABLISHED,RELATED`)
-- NAT (remembering translations)
-- Related connections (FTP data channel)
-
-### 5. Optimizations are Everywhere
-- **Hardware**: RSS, TSO, checksum offload
-- **Driver**: NAPI, GRO
-- **Software**: RPS, RFS, GSO
-- Understanding these is key to performance
+1. **No separate "L2/L3 stages"** - Protocol demultiplexing happens directly
+2. **5 Netfilter hooks** - PREROUTING, INPUT, FORWARD, OUTPUT, POSTROUTING
+3. **Routing decides path** - Local delivery vs forwarding
+4. **Connection tracking** - Enables stateful firewall and NAT
+5. **Optimizations everywhere** - NAPI, GRO, RSS, TSO, etc.
 
 ---
 
-## Use Cases
+## Game ↔ Kernel Mapping
 
-### For Students
-- Learn real Linux networking (not just theory)
-- Understand what happens when you run `curl` or `ping`
-- Prepare for networking certifications
-- Computer science networking courses
-
-### For System Administrators
-- Debug network issues effectively
-- Configure firewalls (`iptables`) correctly
-- Optimize network performance
-- Understand routing and NAT
-
-### For Developers
-- Build network tools (tcpdump, Wireshark alternatives)
-- Implement BPF/XDP programs
-- Create visualizations
-- Develop educational games
-
-### For Game Designers
-- Use "Kernel Mage" concept as inspiration
-- Understand how to gamify technical concepts
-- Create engaging educational content
+| Game Concept | Kernel Equivalent | Purpose |
+|--------------|-------------------|---------|
+| Wand HP | System stability | Win condition |
+| Essence buffer (10 max) | sk_buff receive queue | Resource management |
+| Magic types | Protocol types | Different characteristics |
+| PREROUTING rules | iptables PREROUTING | First defense layer |
+| INPUT rules | Buffer management | Queue discipline |
+| POSTROUTING rules | iptables POSTROUTING | NAT/transformation |
+| CPU resource | Processing power | Action limits |
+| Combo casting (1-3) | Packet sequence | Skill expression |
+| Mixed magic | Multi-protocol packets | Complexity |
+| Inspect | tcpdump | Information gathering |
+| Overflow damage | Buffer overflow | Pressure mechanic |
+| Starvation loss | Resource exhaustion | Anti-turtle |
 
 ---
 
-## Getting Started
+## Why This Design Works
 
-### Quick Start - RX Path
-1. Read **[RX Path](docs/01-RX-Path.md)** for complete receive flow
-2. Look at **[Network Optimizations](docs/02-Network-Optimizations.md)** to understand NAPI, GRO, RSS
-3. Check **[Netfilter & Routing](docs/04-Netfilter-and-Routing.md)** for different scenarios
+### Educational Value
 
-### Quick Start - TX Path
-1. Read **[TX Path](docs/03-TX-Path.md)** for complete transmit flow
-2. Look at **[Network Optimizations](docs/02-Network-Optimizations.md)** for GSO, TSO, XPS
-3. Check **[Netfilter & Routing](docs/04-Netfilter-and-Routing.md)** for NAT configuration
+Players learn real networking concepts:
+- ✅ **iptables configuration** - Defense rules
+- ✅ **Buffer management** - Queue overflow
+- ✅ **NAT/transformation** - POSTROUTING magic changes
+- ✅ **Connection tracking** - Combo detection
+- ✅ **DoS defense** - Overflow attacks
+- ✅ **Resource trade-offs** - CPU vs defense vs offense
 
-### Quick Start - Game Development
-1. Read **[Game Design](docs/05-Game-Design.md)** for complete concept
-2. Understand the RX and TX paths (realms in the game)
-3. Map real kernel features to game mechanics
+### Competitive Balance
 
----
+No dominant strategy:
+- Perfect defense → Starvation loss (no essence)
+- Perfect offense → Takes too much damage
+- CPU limits → Cannot do everything
+- Real-time pressure → Must make decisions
+- Skill expression → Adaptation and combos matter
 
-## Kernel Source Locations
+### Game Design Principles
 
-### Core Files
-- `net/core/dev.c` - Core device handling, `netif_receive_skb()`, `dev_queue_xmit()`
-- `net/core/skbuff.c` - `sk_buff` management
-- `net/core/neighbour.c` - ARP and neighbor discovery
-
-### IPv4
-- `net/ipv4/ip_input.c` - `ip_rcv()`, `ip_local_deliver()`
-- `net/ipv4/ip_output.c` - `ip_output()`, `ip_queue_xmit()`
-- `net/ipv4/route.c` - Routing tables
-- `net/ipv4/tcp.c` - TCP socket operations
-- `net/ipv4/tcp_ipv4.c` - `tcp_v4_rcv()`
-- `net/ipv4/udp.c` - `udp_rcv()`, UDP operations
-
-### Netfilter
-- `net/netfilter/core.c` - Netfilter core
-- `net/ipv4/netfilter/ip_tables.c` - iptables
-- `net/netfilter/nf_conntrack_core.c` - Connection tracking
-
-### Traffic Control
-- `net/sched/` - Queue disciplines (qdiscs)
-- `net/sched/sch_api.c` - TC API
-
-### Device Drivers
-- `drivers/net/ethernet/` - Various NIC drivers
-- `drivers/net/ethernet/intel/e1000e/` - Intel e1000e (example)
+1. **Clear values** - All numbers specified
+2. **Trade-offs** - Every choice has a cost
+3. **Counterplay** - Every strategy has counters
+4. **Skill ceiling** - Mastery through adaptation
+5. **Time pressure** - Real-time incoming essence
+6. **Resource management** - HP, Essence, CPU triangle
 
 ---
 
-## Tools for Exploration
+## Implementation Status
 
-### Packet Capture
+### ✅ Complete Design Documents
+
+- Core mechanics with exact values
+- All 76 magic combos defined
+- 10 strategies analyzed
+- Balance proof (no perfect build)
+
+### 🎯 Next Steps
+
+1. **Prototype** - Build basic turn system
+2. **Rules Engine** - Implement PREROUTING/INPUT/POSTROUTING
+3. **Combo System** - Spell damage calculations
+4. **UI/UX** - Defense configuration screen
+5. **AI** - Opponent behavior
+6. **Multiplayer** - PvP matchmaking
+
+---
+
+## Tools & Resources
+
+### For Understanding Linux Networking
+
 ```bash
-# Capture packets
+# Packet capture
 tcpdump -i eth0 -nn -vv
 
-# Capture to file
-tcpdump -i eth0 -w capture.pcap
-
-# Analyze with tshark
-tshark -r capture.pcap
-```
-
-### Network Statistics
-```bash
-# Interface stats
+# Network stats
 ip -s link show eth0
 
 # Routing tables
 ip route show
-ip route show table all
 
-# ARP cache
-ip neigh show
+# Netfilter rules
+iptables -L -v -n
 
 # Connection tracking
 conntrack -L
+
+# NIC features
+ethtool -k eth0
 ```
 
-### Netfilter/iptables
-```bash
-# View rules
-iptables -L -v -n
-iptables -t nat -L -v -n
-iptables -t mangle -L -v -n
+### Kernel Source Locations
 
-# Trace packets
-iptables -t raw -A PREROUTING -p tcp --dport 80 -j TRACE
-```
-
-### Performance Monitoring
-```bash
-# NIC settings
-ethtool -k eth0  # Offload features
-ethtool -g eth0  # Ring buffer sizes
-ethtool -S eth0  # Statistics
-
-# System tunables
-sysctl -a | grep net.
-```
+- `net/core/dev.c` - Core networking, `netif_receive_skb()`
+- `net/ipv4/ip_input.c` - IP receive, `ip_rcv()`
+- `net/ipv4/ip_output.c` - IP transmit
+- `net/netfilter/` - Netfilter framework
+- `net/sched/` - Traffic control (QoS)
 
 ---
 
 ## Contributing
 
-Found an error? Have suggestions? This documentation aims to be:
-- **Accurate**: Based on actual kernel source code
-- **Educational**: Clear explanations with examples
-- **Practical**: Useful for real-world scenarios
+This documentation is designed to be:
+- **Accurate** - Based on actual kernel source code
+- **Educational** - Clear explanations with examples
+- **Practical** - Useful for game development
 
-Feedback and corrections are welcome!
-
----
-
-## Resources
-
-### Official Documentation
-- [Linux Kernel Networking Documentation](https://www.kernel.org/doc/html/latest/networking/)
-- [Netfilter Project](https://www.netfilter.org/)
-
-### Books
-- "Understanding Linux Network Internals" by Christian Benvenuti
-- "Linux Kernel Networking: Implementation and Theory" by Rami Rosen
-
-### Online Resources
-- Kernel source code browser: https://elixir.bootlin.com/linux/latest/source
-- Packet flow diagram: https://en.wikipedia.org/wiki/Netfilter
+Found errors or have suggestions? Feedback welcome!
 
 ---
 
 ## License
 
-This documentation is created for educational purposes. Linux kernel is licensed under GPL-2.0.
+Documentation created for educational purposes. Linux kernel is GPL-2.0.
 
 ---
 
-**May your packets always find their destination!** ✨🚀📦
+**Game Design**: Competitive wizard duels teaching real networking! ⚔️🔥💧⚡
