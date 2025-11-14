@@ -26,18 +26,45 @@ PvP wizard combat where your wand is a Linux kernel!
 
 ## Files
 
+### Core Engine
 - `core_data.py` - Data structures (kernel-style with dataclasses)
 - `spell_database.py` - All 76 magic combos
 - `ai_opponents.py` - 6 AI difficulty levels
 - `game_engine.py` - Game logic (pure, no UI)
-- `terminal_ui.py` - Terminal interface
+
+### Single Player
+- `terminal_ui.py` - Terminal interface with AI opponents
+
+### Multiplayer
+- `multiplayer_server.py` - WebSocket server for PvP matches
+- `network_protocol.py` - Protocol specification
+- `godot_client/` - Godot visual client (GDScript)
 
 ## How to Play
 
+### Single Player (vs AI)
+
 ```bash
-# Run the game
 python3 terminal_ui.py
 ```
+
+Choose AI difficulty (1-6) and battle against computer opponents!
+
+### Multiplayer (PvP)
+
+**Option 1: Godot Visual Client (recommended)**
+
+1. Start server:
+   ```bash
+   python3 multiplayer_server.py
+   ```
+
+2. Open Godot client (see `godot_client/README.md`)
+
+3. Connect two players to the same room
+
+**Option 2: Terminal (coming soon)**
+- Terminal multiplayer client in development
 
 ### Controls
 
@@ -110,12 +137,44 @@ Actions:
 ✓ Cast Elemental Storm → 35 damage to enemy!
 ```
 
-## Network Protocol (Future)
+## Multiplayer Architecture
 
-The engine exposes clean methods that a network client can call:
-- `get_state_snapshot()` - Get current state as dict
-- `player_cast(count)` - Cast spell action
-- `player_configure_rule(rule)` - Add defense rule
-- `player_discard(index)` - Discard essence
+```
+┌─────────────────────────────────────┐
+│  Godot Client (Player 1)            │
+│  - Visual UI                         │
+│  - WebSocket connection              │
+└──────────┬──────────────────────────┘
+           │ JSON messages
+           │
+┌──────────▼──────────────────────────┐
+│  Multiplayer Server (Python)        │  ← Manages game rooms
+│  - WebSocket server (port 8765)     │
+│  - Room matchmaking                  │
+│  - State synchronization             │
+└──────────┬──────────────────────────┘
+           │ method calls
+           │
+┌──────────▼──────────────────────────┐
+│  Game Engine (Pure Logic)           │  ← Server-authoritative
+│  - Turn processing                   │
+│  - Rules engine                      │
+│  - Prevents cheating                 │
+└─────────────────────────────────────┘
+           │ method calls
+           │
+┌──────────▼──────────────────────────┐
+│  Godot Client (Player 2)            │
+│  - Visual UI                         │
+│  - WebSocket connection              │
+└─────────────────────────────────────┘
+```
 
-Easy to wrap in WebSocket/TCP protocol for multiplayer!
+**Key Features:**
+- Server-authoritative (all game logic on server)
+- Real-time WebSocket communication
+- JSON protocol for easy client development
+- Hidden information (enemy buffer contents)
+- Room-based matchmaking
+
+See `network_protocol.py` for full message specification.
